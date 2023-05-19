@@ -44,8 +44,12 @@ function writeResponse(res, httpCode, body) {
 }
 
 function sendInvalidURLResponse(res) {
-    return writeResponse(res, 404, "url must be in the form of /fetch/{some_url_here}");
+    res.setHeader("Content-Type", "text/html");
+    res.statusCode = 404;
+    res.write("<html><head><meta name=\"google-site-verification\" content=\"g53bgAt5Of2A6WvvX5hksOeSDegpwii4m07EQAtBRBM\" /></head>");
+    res.end("<body><h1>404 - Page Not Found</h1><p>URL must be in the form of /fetch/{some_url_here}</p></body></html>");
 }
+
 
 function sendTooBigResponse(res) {
     return writeResponse(res, 413, "the content in the request or response cannot exceed " + config.max_request_length + " characters.");
