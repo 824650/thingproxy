@@ -23,6 +23,7 @@ publicAddressFinder(function (err, data) {
 var homePageHTML = `
 <html>
 <head>
+<meta name="google-site-verification" content="g53bgAt5Of2A6WvvX5hksOeSDegpwii4m07EQAtBRBM" />
     <title>ThingProxy Home</title>
 </head>
 <body>
