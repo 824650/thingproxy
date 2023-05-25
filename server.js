@@ -86,7 +86,7 @@ var homePageHTML = `
         url = "https://" + url;
       }
 
-      window.location.href = "https://jonathanproxy.onrender.com/fetch/" + url;
+      window.location.href = "https://jonathanproxy.onrender.com/fetch/" + "?u=" + url;
     }
   });
 });
@@ -169,98 +169,126 @@ function processRequest(req, res) {
     return writeResponse(res, 200);
   }
 
-  var result = config.fetch_regex.exec(req.url);
+  var parsedUrl = url.parse(req.url, true);
+  var requestedUrl = parsedUrl.query.u;
 
-  if (result && result.length == 2 && result[1]) {
-    var remoteURL;
+  if (!requestedUrl) {
+    return sendInvalidURLResponse(res);
+  }
 
-    try {
-      remoteURL = url.parse(decodeURI(result[1]));
-    } catch (e) {
-      return sendInvalidURLResponse(res);
+  var remoteURL;
+
+  try {
+    remoteURL = url.parse(decodeURI(requestedUrl));
+  } catch (e) {
+    return sendInvalidURLResponse(res);
+  }
+
+  if (!remoteURL.host) {
+    return writeResponse(res, 404, "Relative URLs are not supported");
+  }
+
+  if (config.blacklist_hostname_regex.test(remoteURL.hostname)) {
+    return writeResponse(res, 400, "Naughty, naughty...");
+  }
+
+  if (remoteURL.protocol !== "http:" && remoteURL.protocol !== "https:") {
+    return writeResponse(res, 400, "Only HTTP and HTTPS are supported");
+  }
+
+  if (publicIP) {
+    if (req.headers["x-forwarded-for"]) {
+      req.headers["x-forwarded-for"] += ", " + publicIP;
+    } else {
+      req.headers["x-forwarded-for"] = req.clientIP + ", " + publicIP;
     }
+  }
 
-    if (!remoteURL.host) {
-      return writeResponse(res, 404, "relative URLS are not supported");
+  if (req.headers["host"]) {
+    req.headers["host"] = remoteURL.host;
+  }
+
+  delete req.headers["origin"];
+  delete req.headers["referer"];
+
+  var proxyRequest = http.request({
+    host: remoteURL.host,
+    path: remoteURL.path,
+    method: req.method,
+    headers: req.headers,
+  });
+
+  proxyRequest.on("error", function (err) {
+    if (err.code === "ENOTFOUND") {
+      return writeResponse(
+        res,
+        502,
+        "Host for " + url.format(remoteURL) + " cannot be found."
+      );
+    } else {
+      console.log(
+        "Proxy Request Error (" + url.format(remoteURL) + "): " + err.toString()
+      );
+      return writeResponse(res, 500);
     }
+  });
 
-    if (config.blacklist_hostname_regex.test(remoteURL.hostname)) {
-      return writeResponse(res, 400, "naughty, naughty...");
-    }
+  var requestSize = 0;
+  var proxyResponseSize = 0;
+  var modifiedResponse = "";
 
-    if (remoteURL.protocol != "http:" && remoteURL.protocol !== "https:") {
-      return writeResponse(res, 400, "only http and https are supported");
-    }
-
-    if (publicIP) {
-      if (req.headers["x-forwarded-for"]) {
-        req.headers["x-forwarded-for"] += ", " + publicIP;
-      } else {
-        req.headers["x-forwarded-for"] = req.clientIP + ", " + publicIP;
+  proxyRequest.on("response", function (proxyResponse) {
+    if (proxyResponse.statusCode >= 300 && proxyResponse.statusCode < 400 && proxyResponse.headers["location"]) {
+      // Intercept and modify redirects
+      var redirectUrl = proxyResponse.headers["location"];
+      if (!redirectUrl.startsWith("http://") && !redirectUrl.startsWith("https://")) {
+        redirectUrl = "https://" + remoteURL.host + redirectUrl;
       }
+      var modifiedLocation = "/fetch/?u=" + encodeURIComponent(redirectUrl);
+      proxyResponse.headers["location"] = modifiedLocation;
     }
 
-    if (req.headers["host"]) {
-      req.headers["host"] = remoteURL.host;
-    }
+    res.writeHead(proxyResponse.statusCode, proxyResponse.headers);
 
-    delete req.headers["origin"];
-    delete req.headers["referer"];
+    proxyResponse.on("data", function (chunk) {
+      proxyResponseSize += chunk.length;
 
-    var proxyRequest = request({
-      url: remoteURL,
-      headers: req.headers,
-      method: req.method,
-      timeout: config.proxy_request_timeout_ms,
-      strictSSL: false,
-    });
-
-    proxyRequest.on("error", function (err) {
-      if (err.code === "ENOTFOUND") {
+      if (proxyResponseSize >= config.max_request_length) {
+        proxyRequest.abort();
         return writeResponse(
           res,
           502,
-          "Host for " + url.format(remoteURL) + " cannot be found."
+          "Response from " + url.format(remoteURL) + " exceeded maximum allowed size."
         );
-      } else {
-        console.log(
-          "Proxy Request Error (" + url.format(remoteURL) + "): " + err.toString()
-        );
-        return writeResponse(res, 500);
       }
+
+      modifiedResponse += chunk;
     });
 
-    var requestSize = 0;
-    var proxyResponseSize = 0;
+    proxyResponse.on("end", function () {
+      res.write(modifiedResponse);
+      res.end();
+    });
+  });
 
-    req.pipe(proxyRequest)
-      .on("data", function (data) {
-        requestSize += data.length;
+  req.on("data", function (chunk) {
+    requestSize += chunk.length;
 
-        if (requestSize >= config.max_request_length) {
-          proxyRequest.end();
-          return sendTooBigResponse(res);
-        }
-      })
-      .on("error", function (err) {
-        writeResponse(res, 500, "Stream Error");
-      });
+    if (requestSize >= config.max_request_length) {
+      proxyRequest.abort();
+      return writeResponse(
+        res,
+        413,
+        "Request size exceeded maximum allowed size."
+      );
+    }
 
-    proxyRequest.pipe(res)
-      .on("data", function (data) {
-        proxyResponseSize += data.length;
+    proxyRequest.write(chunk);
+  });
 
-        if (proxyResponseSize >= config.max_request_length) {
-          proxyRequest.end();
-          return sendTooBigResponse(res);
-        }
-      })
-      .on("error", function (err) {
-        writeResponse(res, 500, "Stream Error");
-      });
-  } else {
-    return sendInvalidURLResponse(res);
-  }
+  req.on("end", function () {
+    proxyRequest.end();
+  });
 }
 
 if (cluster.isMaster) {
