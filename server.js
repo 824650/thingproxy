@@ -21,18 +21,66 @@ publicAddressFinder(function (err, data) {
 
 // Create a basic home page HTML
 var homePageHTML = `
+<!DOCTYPE html>
 <html>
-<head>
+<head><link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat&display=swap" rel="stylesheet">
 <meta name="google-site-verification" content="g53bgAt5Of2A6WvvX5hksOeSDegpwii4m07EQAtBRBM" />
-    <title>ThingProxy Home</title>
+  <title>JonathanProxy</title>
+  <style>
+    body {
+      font-family: Montserrat, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: rgb(7,23,43);
+        color:white;
+
+    }
+    
+    h1 {
+      text-align: center;
+    }
+    
+    #proxy-form {
+      text-align: center;
+      margin-top: 20px;
+    }
+    
+    #proxy-url {
+      width: 400px;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      border:none;
+    }
+    
+    #proxy-submit {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+            border:none;
+
+    }
+  </style>
 </head>
 <body>
-    <h1>Welcome to ThingProxy</h1>
-    <p>ThingProxy allows you to fetch and proxy web content.</p>
-    <p>To use ThingProxy, send a request to /fetch/{URL} where {URL} is the URL of the content you want to fetch.</p>
-    <p>For example, to fetch and proxy https://www.example.com, send a request to /fetch/https://www.example.com</p>
+  <h1>JonathanProxy</h1>
+  
+  <form id="proxy-form" action="https://jonathanproxy.onrender.com/fetch/" method="GET">
+    <input type="text" id="proxy-url" name="url" placeholder="Enter URL Here">
+    <input type="submit" id="proxy-submit" value="Proxy">
+  </form><br>
+  <a href="https://github.com/Freeboard/thingproxy" style="color:white; text-decoration: none;"><span style="position:relative; left:60px">Powered by ThingProxy</span></a>
 </body>
 </html>
+
 `;
 
 function addCORSHeaders(req, res) {
