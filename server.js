@@ -180,8 +180,19 @@ function processRequest(req, res) {
       return sendInvalidURLResponse(res);
     }
 
+    // Check if the request is coming from an <a> or <form> element
+    var referrer = req.headers["referer"];
+    var isFromAnchorTag = referrer && referrer.startsWith("https://jonathanproxy.onrender.com/");
+    var isFromForm = req.headers["content-type"] === "application/x-www-form-urlencoded";
+
+    if (isFromAnchorTag || isFromForm) {
+      // Modify the URL to include the proxy route
+      var proxyURL = "https://jonathanproxy.onrender.com/fetch/" + result[1];
+      remoteURL = url.parse(proxyURL);
+    }
+
     if (!remoteURL.host) {
-      return writeResponse(res, 404, "relative URLS are not supported");
+      return writeResponse(res, 404, "relative URLs are not supported");
     }
 
     if (config.blacklist_hostname_regex.test(remoteURL.hostname)) {
@@ -262,6 +273,7 @@ function processRequest(req, res) {
     return sendInvalidURLResponse(res);
   }
 }
+
 
 if (cluster.isMaster) {
   for (var i = 0; i < config.cluster_process_count; i++) {
