@@ -185,11 +185,16 @@ function processRequest(req, res) {
     var isFromAnchorTag = referrer && referrer.startsWith("https://jonathanproxy.onrender.com/");
     var isFromForm = req.headers["content-type"] === "application/x-www-form-urlencoded";
 
-    if (isFromAnchorTag || isFromForm) {
-      // Modify the URL to include the proxy route
-      var proxyURL = "https://jonathanproxy.onrender.com/fetch/" + result[1];
-      remoteURL = url.parse(proxyURL);
-    }
+    if (isFromAnchorTag) {
+  var urlPath = result[1];
+
+  if (!urlPath.startsWith("http://") && !urlPath.startsWith("https://")) {
+    // Modify the URL to include the proxy route
+    var proxyURL = "https://jonathanproxy.onrender.com/fetch/" + urlPath;
+    remoteURL = url.parse(proxyURL);
+  }
+}
+
 
     if (!remoteURL.host) {
       return writeResponse(res, 404, "relative URLs are not supported");
