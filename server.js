@@ -158,6 +158,20 @@ function getClientAddress(req) {
   return (req.headers["x-forwarded-for"] || "").split(",")[0] || req.connection.remoteAddress;
 }
 
+function replaceURLsInHTML(body, realURL) {
+  // Create a regular expression to match URLs in the HTML body
+  var urlRegex = /(?<=(?:src|href)\s*=\s*["'])(?:https?:)?\/\/[^"']+(?=["'])/g;
+
+  // Replace the URLs with the modified proxy URL
+  body = body.replace(urlRegex, function (match) {
+    var parsedURL = url.parse(match);
+    var modifiedURL = "https://jonathanproxy.onrender.com/fetch/https://" + realURL + parsedURL.path;
+    return modifiedURL;
+  });
+
+  return body;
+}
+
 function processRequest(req, res) {
   addCORSHeaders(req, res);
 
@@ -237,7 +251,7 @@ function processRequest(req, res) {
         console.log(
           "Proxy Request Error (" + url.format(remoteURL) + "): " + err.toString()
         );
-        return writeResponse(res, 500);
+        return writeResponse(res, 500, "Unknown Proxy Error");
       }
     });
 
@@ -257,23 +271,50 @@ function processRequest(req, res) {
         writeResponse(res, 500, "Stream Error");
       });
 
-    proxyRequest.pipe(res)
-      .on("data", function (data) {
-        proxyResponseSize += data.length;
+    proxyRequest.on("response", function (proxyResponse) {
+      var headers = proxyResponse.headers;
+      var contentType = headers["content-type"];
+      var statusCode = proxyResponse.statusCode;
 
-        if (proxyResponseSize >= config.max_request_length) {
-          proxyRequest.end();
-          return sendTooBigResponse(res);
-        }
-      })
-      .on("error", function (err) {
-        writeResponse(res, 500, "Stream Error");
+      // Read the response body
+      var responseBody = "";
+      proxyResponse.on("data", function (chunk) {
+        responseBody += chunk;
       });
+
+      proxyResponse.on("end", function () {
+        // Modify the response body if it's HTML content
+        if (contentType && contentType.indexOf("text/html") !== -1) {
+          responseBody = replaceURLsInHTML(responseBody, remoteURL.hostname);
+        }
+
+        // Create the modified response
+        var modifiedProxyResponse = {
+          headers: headers,
+          statusCode: statusCode,
+          body: responseBody
+        };
+
+        // Write the modified response to the original response
+        writeModifiedResponse(res, modifiedProxyResponse);
+      });
+    });
   } else {
     return sendInvalidURLResponse(res);
   }
 }
 
+function writeModifiedResponse(res, modifiedResponse) {
+  res.statusCode = modifiedResponse.statusCode;
+
+  for (var header in modifiedResponse.headers) {
+    if (modifiedResponse.headers.hasOwnProperty(header)) {
+      res.setHeader(header, modifiedResponse.headers[header]);
+    }
+  }
+
+  res.end(modifiedResponse.body);
+}
 
 if (cluster.isMaster) {
   for (var i = 0; i < config.cluster_process_count; i++) {
