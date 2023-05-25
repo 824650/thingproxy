@@ -86,7 +86,7 @@ var homePageHTML = `
         url = "https://" + url;
       }
 
-      window.location.href = "https://jonathanproxy.onrender.com/fetch/" + encodeURIComponent(url);
+      window.location.href = "https://jonathanproxy.onrender.com/fetch/" + url;
     }
   });
 });
