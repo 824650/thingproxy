@@ -86,7 +86,7 @@ var homePageHTML = `
         url = "https://" + url;
       }
 
-      window.location.href = "https://jonathanproxy.onrender.com/fetch/" + "?u=" + url;
+      window.location.href = "https://jonathanproxy.onrender.com/fetch/" + url;
     }
   });
 });
@@ -244,7 +244,7 @@ function processRequest(req, res) {
       if (!redirectUrl.startsWith("http://") && !redirectUrl.startsWith("https://")) {
         redirectUrl = "https://" + remoteURL.host + redirectUrl;
       }
-      var modifiedLocation = "/fetch/?u=" + encodeURIComponent(redirectUrl);
+      var modifiedLocation = "/fetch/" + redirectUrl;
       proxyResponse.headers["location"] = modifiedLocation;
     }
 
