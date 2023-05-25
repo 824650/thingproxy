@@ -1,7 +1,6 @@
 var http = require('http');
 var https = require('https');
 var config = require("./config");
-var cheerio = require("cheerio");
 var url = require("url");
 var request = require("request");
 var cluster = require('cluster');
