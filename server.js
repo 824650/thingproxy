@@ -72,7 +72,26 @@ var homePageHTML = `
 </head>
 <body>
   <h1>JonathanProxy</h1>
-  
+  <script>
+  document.addEventListener("DOMContentLoaded", function() {
+  var proxyForm = document.getElementById("proxy-form");
+  var proxyUrlInput = document.getElementById("proxy-url");
+
+  proxyForm.addEventListener("submit", function(event) {
+    event.preventDefault();
+    var url = proxyUrlInput.value.trim();
+
+    if (url !== "") {
+      if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        url = "https://" + url;
+      }
+
+      window.location.href = "https://jonathanproxy.onrender.com/fetch/" + encodeURIComponent(url);
+    }
+  });
+});
+
+</script>
   <form id="proxy-form" action="https://jonathanproxy.onrender.com/fetch/" method="GET">
     <input type="text" id="proxy-url" name="url" placeholder="Enter URL Here">
     <input type="submit" id="proxy-submit" value="Proxy">
