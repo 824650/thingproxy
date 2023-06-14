@@ -186,15 +186,14 @@ function processRequest(req, res) {
     var isFromForm = req.headers["content-type"] === "application/x-www-form-urlencoded";
 
     if (isFromAnchorTag) {
-  var urlPath = result[1];
+      var urlPath = result[1];
 
-  if (!urlPath.startsWith("http://") && !urlPath.startsWith("https://")) {
-    // Modify the URL to include the proxy route
-    var proxyURL = "https://jonathanproxy.onrender.com/fetch/" + urlPath;
-    remoteURL = url.parse(proxyURL);
-  }
-}
-
+      if (!urlPath.startsWith("http://") && !urlPath.startsWith("https://")) {
+        // Modify the URL to include the proxy route
+        var proxyURL = "https://jonathanproxy.onrender.com/fetch/" + urlPath;
+        remoteURL = url.parse(proxyURL);
+      }
+    }
 
     if (!remoteURL.host) {
       return writeResponse(res, 404, "relative URLs are not supported");
@@ -249,18 +248,36 @@ function processRequest(req, res) {
     var requestSize = 0;
     var proxyResponseSize = 0;
 
-    req.pipe(proxyRequest)
-      .on("data", function (data) {
-        requestSize += data.length;
+    var body = "";
 
-        if (requestSize >= config.max_request_length) {
-          proxyRequest.end();
-          return sendTooBigResponse(res);
-        }
-      })
-      .on("error", function (err) {
-        writeResponse(res, 500, "Stream Error");
-      });
+    proxyRequest.on("data", function (data) {
+      requestSize += data.length;
+
+      if (requestSize >= config.max_request_length) {
+        proxyRequest.end();
+        return sendTooBigResponse(res);
+      }
+
+      body += data.toString();
+    });
+
+    proxyRequest.on("end", function () {
+      // Send the modified proxied HTML response
+      if (body) {
+        // Send the modified proxied URL as the <base> tag in the response
+        var baseTag = '<base href="' + remoteURL.href + '">';
+
+        // Modify the proxied website to include the <base> tag
+        body = body.replace(/<head(\s+[^>]*)?>/i, '<head$1>' + baseTag);
+      }
+
+      // Send the modified response
+      writeResponse(res, 200, body);
+    });
+
+    proxyRequest.on("error", function (err) {
+      writeResponse(res, 500, "Stream Error");
+    });
 
     proxyRequest.pipe(res)
       .on("data", function (data) {
