@@ -269,6 +269,9 @@ function processRequest(req, res) {
 
         // Modify the proxied website to include the <base> tag
         body = body.replace(/<head(\s+[^>]*)?>/i, '<head$1>' + baseTag);
+        
+        console.log(body); // Output the modified HTML body content
+
       }
 
       // Send the modified response
