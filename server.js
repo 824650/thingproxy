@@ -261,15 +261,15 @@ function processRequest(req, res) {
       body += data.toString();
     });
 
-    proxyRequest.on("end", function () {
+proxyRequest.on("end", function () {
   // Send the modified proxied HTML response
   if (body) {
     // Send the modified proxied URL as the <base> tag in the response
     var baseTag = '<base href="' + "https://jonathanproxy.onrender.com/fetch/" + remoteURL.href + '">';
 
     // Modify the proxied website to include the <base> tag
-    var modifiedBody = body.replace(/<head(\s+[^>]*?)?>/i, function (match, p1) {
-      return '<head' + p1 + '>' + baseTag;
+    var modifiedBody = body.replace(/<head(\s[^>]*?)?>/i, function (match, attributes) {
+      return '<head' + attributes + '>' + baseTag;
     });
 
     // Send the modified response
@@ -278,6 +278,7 @@ function processRequest(req, res) {
     writeResponse(res, 200, body);
   }
 });
+
 
 
     proxyRequest.on("error", function (err) {
