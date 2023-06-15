@@ -262,21 +262,23 @@ function processRequest(req, res) {
     });
 
     proxyRequest.on("end", function () {
-      // Send the modified proxied HTML response
-      if (body) {
-        // Send the modified proxied URL as the <base> tag in the response
-        var baseTag = '<base href="' + remoteURL.href + '">';
+  // Send the modified proxied HTML response
+  if (body) {
+    // Send the modified proxied URL as the <base> tag in the response
+    var baseTag = '<base href="' + "https://jonathanproxy.onrender.com/fetch/" + remoteURL.href + '">';
 
-        // Modify the proxied website to include the <base> tag
-        body = body.replace(/<head(\s+[^>]*)?>/i, '<head$1>' + baseTag);
-        
-        console.log(body); // Output the modified HTML body content
-
-      }
-
-      // Send the modified response
-      writeResponse(res, 200, body);
+    // Modify the proxied website to include the <base> tag
+    var modifiedBody = body.replace(/<head(\s+[^>]*?)?>/i, function (match, p1) {
+      return '<head' + p1 + '>' + baseTag;
     });
+
+    // Send the modified response
+    writeResponse(res, 200, modifiedBody);
+  } else {
+    writeResponse(res, 200, body);
+  }
+});
+
 
     proxyRequest.on("error", function (err) {
       writeResponse(res, 500, "Stream Error");
